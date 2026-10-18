@@ -135,7 +135,7 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
 - `dsh-session-remover`：从 npm 安装成功、运行时无报错，但侧栏菜单不出现。根因是它注册到插槽 `sidebar.workspaces.session.menu.item`，而本机 dsh 0.2.x 只声明 `sidebar.workspaces` 与 `sidebar.workspaces.directoryFlow`；插槽名不存在时注册被**静默忽略**，插件代码内又有 try/catch，连报错都没有。
 - 通用判据：插件"装上了但界面无变化"优先怀疑插槽名。先 `grep -rn "slots.inject"` 找出插件注册的插槽名，再在 dsh 客户端产物里搜同名常量确认是否存在，两边对不上就不要在插件侧兜圈子。
 
-**替代方案：`tools/delete-session.mjs`**
+**替代方案：`session-cleanup/delete-session.mjs`**
 
 dsh 原生只有"归档"（把 id 写进 `workspace.json` 的 `global.archivedSessionIds`，仅在侧栏隐藏，正文照旧占磁盘，且本机没有归档管理页可以撤销或删除），没有删除入口。工具按下面的三层联动清理：
 
@@ -149,10 +149,10 @@ dsh 原生只有"归档"（把 id 写进 `workspace.json` 的 `global.archivedSe
 
 ```sh
 # 列出工作区与会话（短 id + 完整 id + 归档状态 + 目录是否存在）
-node tools/delete-session.mjs --list
+node session-cleanup/delete-session.mjs --list
 
 # 删除：uuid 前 8 位即可，也可用末尾片段或任意唯一片段
-node tools/delete-session.mjs 900ea42d 7af8fc00
+node session-cleanup/delete-session.mjs 900ea42d 7af8fc00
 ```
 
 注意事项：
@@ -161,6 +161,8 @@ node tools/delete-session.mjs 900ea42d 7af8fc00
 - 只作用于 `DSH_HOME`（默认 `C:\Users\JJY\.dsh`）下的 `sessions\` 与 `storages\`。工作区对应的项目目录（如 `D:\DeepSeek`）在 `workspace.json` 里只是一行字符串路径，工具从不读写它。删除前后对 `D:\DeepSeek` 做 `ls` 快照比对，结果完全一致。
 - 删除后需重启 dsh web，侧栏才会更新。
 - 若磁盘上存在未登记的孤儿会话目录（旧 `session.v4.jsonl.zstd` 格式），`--list` 不会显示，因为它的数据源是 `workspace.json` 而非磁盘扫描。
+
+完整说明（存储结构、参数、还原步骤、已知限制、实测记录）见 **`session-cleanup/README.md`**，该目录可独立使用。
 
 ## 维护手册
 
@@ -213,8 +215,9 @@ dsh-web-setup/
 ├── LICENSE
 ├── docs/
 │   └── provider-fill-guide.md         # 腾讯混元 / 火山方舟 / 小米 MiMo 自定义提供方逐字段填写值
-├── tools/
-│   └── delete-session.mjs             # 会话一键删除（回收站可还原 + 记账/缓存同步清理）
+├── session-cleanup/                   # 会话一键删除：独立工具，自带 README
+│   ├── README.md                      # 存储结构、用法、还原、限制、实测记录
+│   └── delete-session.mjs             # 回收站删除 + 记账/缓存同步清理
 └── plugins/                           # 一插件一目录：说明 + 适配脚本 + 补丁文档
     ├── dsh-provider-hub/
     │   ├── README.md                  # 用途、安装、适配说明、已知限制
@@ -239,6 +242,7 @@ dsh-web-setup/
 结构约定：
 
 - **一插件一目录**，目录内自带 README，不依赖根目录说明即可独立阅读。
+- **独立工具同样一目录 + 一个 README**（如 `session-cleanup/`），脚本与说明放在一起，可以从目录里直接拿出来单独使用。
 - **只收录适配内容，不整体复制第三方源码**：上游代码由包管理器安装，仓库只保存"改了什么、为什么改、怎么复原"，避免冗余与版本错配。
 - 需要代码级改动的插件带 `apply.mjs`（幂等，可重复执行）；纯配置/安装类插件只有 README。
 

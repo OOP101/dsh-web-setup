@@ -7,13 +7,13 @@
 //      避免侧栏残留空行、避免归档集合里留下已不存在的 id。
 //
 // 用法：
-//   node tools/delete-session.mjs --list
+//   node session-cleanup/delete-session.mjs --list
 //       列出全部工作区与会话（含标题、归档状态、目录是否存在）
 //
-//   node tools/delete-session.mjs <id 或 id 片段> [更多 id ...]
+//   node session-cleanup/delete-session.mjs <id 或 id 片段> [更多 id ...]
 //       删除指定会话；可以只给 uuid 前 8 位、末尾几位或任意唯一片段
 //
-//   node tools/delete-session.mjs --list --home D:\other\.dsh
+//   node session-cleanup/delete-session.mjs --list --home D:\other\.dsh
 //       指定 DSH_HOME（默认 %USERPROFILE%\.dsh 或环境变量 DSH_HOME）
 //
 // 前提：dsh web 必须处于停止状态。运行中时脚本会拒绝执行——运行中的进程会把
@@ -41,9 +41,9 @@ for (let i = 0; i < argv.length; i += 1) {
 function printHelp() {
   console.log(`DSH 会话一键删除（移入回收站）
 
-  node tools/delete-session.mjs --list            列出会话
-  node tools/delete-session.mjs <id 或片段> ...   删除指定会话（uuid 前 8 位即可）
-  --home <目录>                                   指定 DSH_HOME
+  node session-cleanup/delete-session.mjs --list            列出会话
+  node session-cleanup/delete-session.mjs <id 或片段> ...   删除指定会话（uuid 前 8 位即可）
+  --home <目录>                                             指定 DSH_HOME
 
 删除前请先停止 dsh web。`)
 }
@@ -133,13 +133,7 @@ function toRecycleBin(target) {
 
 if (!opts.list && opts.ids.length === 0) { printHelp(); process.exit(1) }
 
-if (await serverRunning()) {
-  console.error('dsh web 正在运行（127.0.0.1:3080 可连接）。')
-  console.error('请先停止服务再执行（否则运行中的进程会把内存状态写回磁盘，覆盖清理结果）：')
-  console.error('  任务管理器结束占用 3080 的 node.exe，或运行 ~/.dsh/restart-web.ps1 前先手动停止')
-  process.exit(1)
-}
-
+// --list 只读，不要求停服务；删除才需要独占
 if (opts.list) {
   const all = rows()
   if (all.length === 0) { console.log('没有会话。'); process.exit(0) }
@@ -156,6 +150,13 @@ if (opts.list) {
     console.log('')
   }
   process.exit(0)
+}
+
+if (await serverRunning()) {
+  console.error('dsh web 正在运行（127.0.0.1:3080 可连接）。')
+  console.error('请先停止服务再执行（否则运行中的进程会把内存状态写回磁盘，覆盖清理结果）：')
+  console.error('  任务管理器结束占用 3080 的 node.exe，或运行 ~/.dsh/restart-web.ps1 前先手动停止')
+  process.exit(1)
 }
 
 // 删除：把每个参数解析成唯一会话 id
