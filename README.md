@@ -129,6 +129,39 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
 - 说明文档：`plugins/dsh-provider-hub/patch/fix-settings-slot.md`
 - 备选：不装插件，直接用「添加自定义提供方」手填三家（免费赠送额度走同一套官方接口），逐字段值见 `docs/provider-fill-guide.md`。
 
+### 问题 9：两个会话删除插件在本机都出不来入口，改用命令行工具
+
+- `better-dsh-session-deletetool`：见问题 6，用户反馈不可用，已卸载。
+- `dsh-session-remover`：从 npm 安装成功、运行时无报错，但侧栏菜单不出现。根因是它注册到插槽 `sidebar.workspaces.session.menu.item`，而本机 dsh 0.2.x 只声明 `sidebar.workspaces` 与 `sidebar.workspaces.directoryFlow`；插槽名不存在时注册被**静默忽略**，插件代码内又有 try/catch，连报错都没有。
+- 通用判据：插件"装上了但界面无变化"优先怀疑插槽名。先 `grep -rn "slots.inject"` 找出插件注册的插槽名，再在 dsh 客户端产物里搜同名常量确认是否存在，两边对不上就不要在插件侧兜圈子。
+
+**替代方案：`tools/delete-session.mjs`**
+
+dsh 原生只有"归档"（把 id 写进 `workspace.json` 的 `global.archivedSessionIds`，仅在侧栏隐藏，正文照旧占磁盘，且本机没有归档管理页可以撤销或删除），没有删除入口。工具按下面的三层联动清理：
+
+| 层 | 路径 | 作用 |
+|---|---|---|
+| 1 正文 | `~/.dsh/sessions/<workspace-key>/session-<uuid>/session.jsonl.zstd` | 真正的聊天记录 |
+| 2 记账 | `~/.dsh/storages/workspace.json` → `tables.workspaces.<id>.sessionIds` | 决定侧栏显示哪几条 |
+| 3 缓存 | `~/.dsh/storages/session_projcache.json` → `tables.sessions.<id>.rows.title` | 决定侧栏显示什么标题 |
+
+只删第 1 层会留下点不开的空行；只删第 2、3 层正文仍占磁盘。工具一次做完三步，并把第 1 层移入 Windows **回收站**（可还原）。
+
+```sh
+# 列出工作区与会话（短 id + 完整 id + 归档状态 + 目录是否存在）
+node tools/delete-session.mjs --list
+
+# 删除：uuid 前 8 位即可，也可用末尾片段或任意唯一片段
+node tools/delete-session.mjs 900ea42d 7af8fc00
+```
+
+注意事项：
+
+- **必须先停 dsh web**。脚本会检测 127.0.0.1:3080，服务在跑就拒绝执行——运行中的进程会把内存里的工作区状态写回磁盘，覆盖清理结果。
+- 只作用于 `DSH_HOME`（默认 `C:\Users\JJY\.dsh`）下的 `sessions\` 与 `storages\`。工作区对应的项目目录（如 `D:\DeepSeek`）在 `workspace.json` 里只是一行字符串路径，工具从不读写它。删除前后对 `D:\DeepSeek` 做 `ls` 快照比对，结果完全一致。
+- 删除后需重启 dsh web，侧栏才会更新。
+- 若磁盘上存在未登记的孤儿会话目录（旧 `session.v4.jsonl.zstd` 格式），`--list` 不会显示，因为它的数据源是 `workspace.json` 而非磁盘扫描。
+
 ## 维护手册
 
 ### 一键恢复/更新补丁
@@ -180,6 +213,8 @@ dsh-web-setup/
 ├── LICENSE
 ├── docs/
 │   └── provider-fill-guide.md         # 腾讯混元 / 火山方舟 / 小米 MiMo 自定义提供方逐字段填写值
+├── tools/
+│   └── delete-session.mjs             # 会话一键删除（回收站可还原 + 记账/缓存同步清理）
 └── plugins/                           # 一插件一目录：说明 + 适配脚本 + 补丁文档
     ├── dsh-provider-hub/
     │   ├── README.md                  # 用途、安装、适配说明、已知限制

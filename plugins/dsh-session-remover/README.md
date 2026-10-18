@@ -1,5 +1,9 @@
 # dsh-session-remover（会话删除，回收站可还原）
 
+> **本机实测状态：装得上，用不了。** 插件运行正常、无报错，但侧栏「…」菜单不会出现——它注册到插槽 `sidebar.workspaces.session.menu.item`，本机 dsh 0.2.x 只声明 `sidebar.workspaces` 与 `sidebar.workspaces.directoryFlow`，插槽名不存在时注册被静默忽略。下方「用法」是插件设计意图，不代表本机可用。
+>
+> **替代方案：`tools/delete-session.mjs`**（见根目录 README 问题 9）。功能等价，命令行执行，删除同样走回收站。
+
 在侧栏会话行的「…」菜单中增加「删除对话」与「批量删除…」，把对话及其子代理会话移入 **Windows 回收站**，需要时可以还原。
 
 - 包名：`dsh-session-remover@1.0.1`（npm）
