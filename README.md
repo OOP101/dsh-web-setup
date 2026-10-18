@@ -20,7 +20,7 @@ DeepSeek Harness（dsh web）环境搭建记录与维护工具箱。
 |---|---|---|
 | dsh-provider-hub@0.3.2 | npm | 50 家服务商预设（腾讯混元、小米 MiMo、火山方舟等），填 Key 一键写入官方 llm-pi-ai 路由与凭据，热注册无需重启 |
 | dsh-worktable@0.0.0 | github:Aisland-SJL/dsh-worktable | 工作台插件（无 dsh.bundle，以普通依赖安装） |
-| dsh-opencode-zen | github:xiaozhe7772222/dsh-opencode-zen | OpenCode Zen 免费档模型接入（零 Key，字面量 `public` 认证） |
+| dsh-opencode-zen | github:xiaozhe7772222/dsh-opencode-zen | OpenCode Zen 免费档模型接入（零 Key，字面量 `public` 认证）。**注：2026-10-18 起上游将免费档限制为仅 OpenCode 客户端可用，该路由调用返回 403，详见问题 4** |
 
 ### 安装命令
 
@@ -53,6 +53,14 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
 - 原因：OpenCode Zen 免费档模型池滚动更新，插件内硬编码的 MODELS 数组过期。
 - 修复：以 `public` 凭据请求 `https://opencode.ai/zen/v1/models` 获取当前免费模型，更新 MODELS 数组（`scripts/apply-zen-patches.mjs` 已内置自动同步）。
 
+### 问题 4：免费档被上游限制在 OpenCode 客户端内使用（2026-10-18 实测，未解决）
+
+- 现象：对话报 `HTTP 403 FreeTierError: OpenCode's free tier can only be used from within OpenCode`。
+- 实测边界：`GET /zen/v1/models` 仍返回 200，但 `POST /zen/v1/chat/completions` 一律 403，替换 User-Agent 无效——服务端按客户端身份拦截，属上游访问控制，第三方客户端无法通过改请求头绕过。
+- 插件侧状态：上游仓库最新提交仅为文档更新，暂无修复方案。
+- 影响：dsh-opencode-zen 路由下的模型仍显示在模型选择器中，但调用必然失败。
+- 处理建议：改用 dsh-provider-hub 的官方渠道预设（腾讯混元、火山方舟、小米 MiMo 等，各平台均有新用户免费额度），或使用 DSH 原生 DeepSeek 适配器。若需彻底消除误选，可执行 `dsh plugin remove dsh-opencode-zen --profile web` 卸载后重启。
+
 ## 维护手册
 
 ### 一键恢复/更新补丁
@@ -80,6 +88,7 @@ node scripts/apply-zen-patches.mjs
 | `failed to read overlay ... cordis.patch.yml` | 包缺补丁文件，profile 无法启动 | 运行 `apply-zen-patches.mjs` 补写 |
 | `registration.adapter.prepareCall is not a function` | 适配器接口代差 | 运行 `apply-zen-patches.mjs` 注入垫片 |
 | `HTTP 410 ModelDeprecated` / `HTTP 400 Model is unavailable` | 免费模型清单过期 | 运行 `apply-zen-patches.mjs` 同步上游清单 |
+| `HTTP 403 FreeTierError` | 免费档被上游限制为仅 OpenCode 客户端可用 | 无本地绕行方案，改用 provider-hub 官方渠道预设或原生 DeepSeek |
 | `HTTP 429` | 免费档 IP 限流 | 等待 30–60 秒后重试 |
 | 插件列表页显示"暂时无法读取插件" | 只读清单页的 RPC 失败 | 不影响插件功能，以"设置 → Models"实际状态为准 |
 
