@@ -26,7 +26,7 @@ DeepSeek Harness（dsh web）环境搭建记录与维护工具箱。
 | dsh-provider-hub@0.3.2 | npm | 50 家服务商预设（腾讯混元、小米 MiMo、火山方舟等），填 Key 一键写入官方 llm-pi-ai 路由与凭据，热注册无需重启 |
 | dsh-worktable@0.4.0 | github:Aisland-SJL/dsh-worktable **子包 01_content** | 工作台插件。根包不是插件，必须装 `#path:/01_content`，详见问题 5 |
 | dshmarket@1.66.x | npm | 可视化插件市场，站内浏览、搜索、一键安装社区插件 |
-| better-dsh-session-deletetool@0.5.3 | github:Lzcdebear/better-dsh-session-deletetool | 会话真正删除（非归档），支持批量；家族树受 `sessionQuery` 限制，详见问题 6 |
+| dsh-session-remover@1.0.1 | npm | 会话真正删除（非归档）：侧栏「…」菜单删除对话/批量删除，移入 Windows 回收站可还原，连子代理会话一并清理 |
 | @liustack/modsearch@5.10.7 | npm（经市场安装） | 通过插件市场自行安装 |
 | beauticode-dsh@1.0.30 | npm（经市场安装） | 通过插件市场自行安装 |
 
@@ -87,7 +87,7 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
   安装后包版本为 0.4.0，`engines` 声明兼容 `0.2.0-rc.2`，重启后生效。
 - 通用经验：遇到"已安装，未生效"先看提示里的子包路径，`#path:/子目录` 是 pnpm 对 git 源子目录的固定写法。
 
-### 问题 6：会话删除工具（better-dsh-session-deletetool）的两处限制
+### 问题 6：会话删除工具的两处限制（`better-dsh-session-deletetool`，已卸载，换用 `dsh-session-remover`）
 
 **现象一：批量删除对话框显示「读取失败：HTTP 200」。**
 
@@ -114,7 +114,7 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
 
 - pnpm store 不能手删：profile 的 `node_modules` 通过硬链接指向 store，删除 store 后已装插件的文件随之消失，表现为"模块找不到"。需要清理时使用 `pnpm store prune`（仅移除未被引用的版本）。
 - web 与 desktop 是两个独立 profile（`.dsh\profiles\web`、`.dsh\profiles\desktop`），依赖各自安装、互不影响；但共享 `~/.dsh` 下的会话、凭据与 settings，因此两端看到的是同一批会话与同一份 API Key。
-- 桌面客户端只支持从 npm registry 安装插件，不支持 GitHub 源：`dsh-worktable`、`dsh-opencode-zen`、`better-dsh-session-deletetool` 这类 git 源插件在 desktop profile 无法安装。
+- 桌面客户端只支持从 npm registry 安装插件，不支持 GitHub 源：`dsh-worktable`、`dsh-opencode-zen` 这类 git 源插件在 desktop profile 无法安装（`dsh-session-remover` 在 npm 上，可以装）。
 - 换端不等于清理：保留 web profile 即可，需要桌面端时在 desktop profile 另行安装 npm 源插件（`dsh plugin install <包名> --profile desktop`）。
 
 ### 问题 8：provider-hub 的「服务商预设」卡片不显示（插槽名不匹配）
@@ -193,8 +193,10 @@ dsh-web-setup/
     │       └── fix-prepareCall.md
     ├── dsh-worktable/
     │   └── README.md                  # 集合仓库根包≠插件，正确装子包 01_content
+    ├── dsh-session-remover/
+    │   └── README.md                  # 删除会话（回收站可还原）的安装与用法
     ├── better-dsh-session-deletetool/
-    │   └── README.md                  # 两处已知限制与实测排除记录
+    │   └── README.md                  # 已卸载：两处限制与实测排除记录（保留作参考）
     └── dshmarket/
         └── README.md                  # 插件市场安装与使用
 ```

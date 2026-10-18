@@ -1,4 +1,6 @@
-# better-dsh-session-deletetool（诊断记录）
+# better-dsh-session-deletetool（诊断记录，已卸载）
+
+> **状态：已从 web profile 卸载。** 原因见下方两处限制；替代方案为 `plugins/dsh-session-remover`（移入回收站，可还原）。
 
 真正删除 DSH 会话（而非归档），支持按工作区分组、批量删除、查看会话派生关系。
 
