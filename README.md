@@ -100,6 +100,8 @@ dsh-web-setup/
 ├── LICENSE
 ├── scripts/
 │   └── apply-zen-patches.mjs          # 一键恢复补丁 + 同步最新免费模型清单
+├── docs/
+│   └── provider-fill-guide.md         # 腾讯混元 / 火山方舟 / 小米 MiMo 自定义提供方逐字段填写值
 └── patches/
     └── dsh-opencode-zen/
         ├── cordis-patch-yml-missing.md  # 问题 1：缺失补丁文件的说明与修复内容
