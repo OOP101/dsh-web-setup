@@ -117,6 +117,18 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
 - 桌面客户端只支持从 npm registry 安装插件，不支持 GitHub 源：`dsh-worktable`、`dsh-opencode-zen`、`better-dsh-session-deletetool` 这类 git 源插件在 desktop profile 无法安装。
 - 换端不等于清理：保留 web profile 即可，需要桌面端时在 desktop profile 另行安装 npm 源插件（`dsh plugin install <包名> --profile desktop`）。
 
+### 问题 8：provider-hub 的「服务商预设」卡片不显示（插槽名不匹配）
+
+- 现象：插件装好、服务端 50 家预设接口正常，但 **设置 → 模型** 页面只有 DeepSeek 一行和两个添加按钮，看不到「服务商预设」卡片。
+- 根因：插件客户端把卡片注册到 `settings.models.footer`，而本机 dsh 版本的设置页只挂载 `settings.section` 与 `settings.onboarding`；插槽不存在时注册被静默忽略，无报错。
+- 修复：注册目标改为 `settings.section`，并补上该插槽必需的 `label`。改完后设置页左侧会多出一节「服务商预设」。
+  ```sh
+  node scripts/apply-provider-hub-patch.mjs
+  # 执行后重启 dsh web
+  ```
+- 说明文档：`patches/dsh-provider-hub/fix-settings-slot.md`
+- 备选：不装插件，直接用「添加自定义提供方」手填三家（免费赠送额度走同一套官方接口），逐字段值见 `docs/provider-fill-guide.md`。
+
 ## 维护手册
 
 ### 一键恢复/更新补丁
@@ -158,13 +170,16 @@ dsh-web-setup/
 ├── README.md                          # 本文件
 ├── LICENSE
 ├── scripts/
-│   └── apply-zen-patches.mjs          # 一键恢复补丁 + 同步最新免费模型清单
+│   ├── apply-zen-patches.mjs          # 一键恢复补丁 + 同步最新免费模型清单
+│   └── apply-provider-hub-patch.mjs   # 修复「服务商预设」卡片不显示的插槽名问题
 ├── docs/
 │   └── provider-fill-guide.md         # 腾讯混元 / 火山方舟 / 小米 MiMo 自定义提供方逐字段填写值
 └── patches/
-    └── dsh-opencode-zen/
-        ├── cordis-patch-yml-missing.md  # 问题 1：缺失补丁文件的说明与修复内容
-        └── fix-prepareCall.md           # 问题 2：prepareCall 垫片说明与代码
+    ├── dsh-opencode-zen/
+    │   ├── cordis-patch-yml-missing.md  # 问题 1：缺失补丁文件的说明与修复内容
+    │   └── fix-prepareCall.md           # 问题 2：prepareCall 垫片说明与代码
+    └── dsh-provider-hub/
+        └── fix-settings-slot.md         # 问题 8：插槽名不匹配导致卡片不显示
 ```
 
 ## 相关资料
