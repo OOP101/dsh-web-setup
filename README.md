@@ -41,25 +41,25 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
 
 ## 三个兼容性问题与修复
 
-以下补丁均落在 `~/.dsh/profiles/web/node_modules/` 内，**pnpm 重装/更新插件会将其覆盖**，届时运行 `scripts/apply-zen-patches.mjs` 一键恢复。
+以下补丁均落在 `~/.dsh/profiles/web/node_modules/` 内，**pnpm 重装/更新插件会将其覆盖**，届时运行 `plugins/dsh-opencode-zen/apply.mjs` 一键恢复。
 
 ### 问题 1：dsh-opencode-zen 缺少声明的补丁文件
 
 - 现象：dsh web 启动即崩溃，报 `failed to read overlay ...\dsh-opencode-zen\cordis.patch.yml: ENOENT`。
 - 原因：该 GitHub 包在 package.json 的 `dsh.bundle.patch` 声明了 `./cordis.patch.yml`，但包内没有这个文件。
-- 修复：手动补写标准 insert 条目（见 `patches/dsh-opencode-zen/cordis.patch.yml`）。
+- 修复：手动补写标准 insert 条目（见 `plugins/dsh-opencode-zen/patch/cordis-patch-yml-missing.md`）。
 
 ### 问题 2：适配器接口代差（prepareCall）
 
 - 现象：对话运行报 `registration.adapter.prepareCall is not a function`。
 - 原因：本机 dsh-llm 0.2.x 要求适配器实现 `prepareCall(provider, model, signal)` 并返回 `{ model, stream(options) }` 绑定句柄；该插件的 `OpenCodeZenAdapter` 只有旧接口（`resolveModel` + `async *stream`）。
-- 修复：在 `OpenCodeZenAdapter` 类内补写垫片（见 `patches/dsh-opencode-zen/fix-prepareCall.md`）。
+- 修复：在 `OpenCodeZenAdapter` 类内补写垫片（见 `plugins/dsh-opencode-zen/patch/fix-prepareCall.md`）。
 
 ### 问题 3：插件内置模型清单过期
 
 - 现象：对话报 `HTTP 410 ModelDeprecated`（mimo-v2.5-free → v2.6）或 `HTTP 400 Model is unavailable`（hy3-free 等已下线）。
 - 原因：OpenCode Zen 免费档模型池滚动更新，插件内硬编码的 MODELS 数组过期。
-- 修复：以 `public` 凭据请求 `https://opencode.ai/zen/v1/models` 获取当前免费模型，更新 MODELS 数组（`scripts/apply-zen-patches.mjs` 已内置自动同步）。
+- 修复：以 `public` 凭据请求 `https://opencode.ai/zen/v1/models` 获取当前免费模型，更新 MODELS 数组（`plugins/dsh-opencode-zen/apply.mjs` 已内置自动同步）。
 
 ### 问题 4：免费档被上游限制在 OpenCode 客户端内使用（2026-10-18 实测，未解决，插件已卸载）
 
@@ -123,22 +123,31 @@ dsh plugin install github:xiaozhe7772222/dsh-opencode-zen --profile web
 - 根因：插件客户端把卡片注册到 `settings.models.footer`，而本机 dsh 版本的设置页只挂载 `settings.section` 与 `settings.onboarding`；插槽不存在时注册被静默忽略，无报错。
 - 修复：注册目标改为 `settings.section`，并补上该插槽必需的 `label`。改完后设置页左侧会多出一节「服务商预设」。
   ```sh
-  node scripts/apply-provider-hub-patch.mjs
+  node plugins/dsh-provider-hub/apply.mjs
   # 执行后重启 dsh web
   ```
-- 说明文档：`patches/dsh-provider-hub/fix-settings-slot.md`
+- 说明文档：`plugins/dsh-provider-hub/patch/fix-settings-slot.md`
 - 备选：不装插件，直接用「添加自定义提供方」手填三家（免费赠送额度走同一套官方接口），逐字段值见 `docs/provider-fill-guide.md`。
 
 ## 维护手册
 
 ### 一键恢复/更新补丁
 
+每个需要代码级适配的插件目录下都有自己的 `apply.mjs`：
+
 ```sh
-node scripts/apply-zen-patches.mjs
-# 可选参数：--dir <dsh-opencode-zen 包目录>（默认自动定位 ~/.dsh/profiles/web）
+# provider-hub：插槽名适配
+node plugins/dsh-provider-hub/apply.mjs
+
+# opencode-zen：补丁恢复 + 免费模型清单同步
+node plugins/dsh-opencode-zen/apply.mjs
+# 可选参数：--dir <插件包目录>（默认自动定位 ~/.dsh/profiles/web）
 ```
 
-脚本做三件事：补写缺失的 `cordis.patch.yml`；若适配器缺 `prepareCall` 则注入垫片；从上游拉取最新免费模型清单并重写 MODELS 数组。执行后重启 `dsh web` 生效。
+两个脚本均为幂等，可重复执行；执行后重启 `dsh web` 生效。
+
+- `dsh-provider-hub/apply.mjs`：把卡片注册目标从 `settings.models.footer` 改为 `settings.section` 并补 `label`。
+- `dsh-opencode-zen/apply.mjs`：补写缺失的 `cordis.patch.yml`；若适配器缺 `prepareCall` 则注入垫片；从上游拉取最新免费模型清单并重写 MODELS 数组。
 
 ### 重启服务
 
@@ -167,20 +176,34 @@ node scripts/apply-zen-patches.mjs
 
 ```
 dsh-web-setup/
-├── README.md                          # 本文件
+├── README.md                          # 总览：环境、插件清单、问题索引、维护手册
 ├── LICENSE
-├── scripts/
-│   ├── apply-zen-patches.mjs          # 一键恢复补丁 + 同步最新免费模型清单
-│   └── apply-provider-hub-patch.mjs   # 修复「服务商预设」卡片不显示的插槽名问题
 ├── docs/
 │   └── provider-fill-guide.md         # 腾讯混元 / 火山方舟 / 小米 MiMo 自定义提供方逐字段填写值
-└── patches/
+└── plugins/                           # 一插件一目录：说明 + 适配脚本 + 补丁文档
+    ├── dsh-provider-hub/
+    │   ├── README.md                  # 用途、安装、适配说明、已知限制
+    │   ├── apply.mjs                  # 一键应用插槽适配（幂等）
+    │   └── patch/fix-settings-slot.md # 插槽名不匹配的根因与修复代码
     ├── dsh-opencode-zen/
-    │   ├── cordis-patch-yml-missing.md  # 问题 1：缺失补丁文件的说明与修复内容
-    │   └── fix-prepareCall.md           # 问题 2：prepareCall 垫片说明与代码
-    └── dsh-provider-hub/
-        └── fix-settings-slot.md         # 问题 8：插槽名不匹配导致卡片不显示
+    │   ├── README.md                  # 用途、三个适配点、停用原因、恢复条件
+    │   ├── apply.mjs                  # 补丁恢复 + 免费模型清单同步（幂等）
+    │   └── patch/
+    │       ├── cordis-patch-yml-missing.md
+    │       └── fix-prepareCall.md
+    ├── dsh-worktable/
+    │   └── README.md                  # 集合仓库根包≠插件，正确装子包 01_content
+    ├── better-dsh-session-deletetool/
+    │   └── README.md                  # 两处已知限制与实测排除记录
+    └── dshmarket/
+        └── README.md                  # 插件市场安装与使用
 ```
+
+结构约定：
+
+- **一插件一目录**，目录内自带 README，不依赖根目录说明即可独立阅读。
+- **只收录适配内容，不整体复制第三方源码**：上游代码由包管理器安装，仓库只保存"改了什么、为什么改、怎么复原"，避免冗余与版本错配。
+- 需要代码级改动的插件带 `apply.mjs`（幂等，可重复执行）；纯配置/安装类插件只有 README。
 
 ## 相关资料
 
